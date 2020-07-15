@@ -151,19 +151,12 @@ class Daemon(service.Daemon):
 
         settings = os.path.join(self._tempDir.directory, 'settings.properties')
         with open(settings, 'w') as f:
-            f.write(
-                util.processTemplate(
-                    os.path.join(
+            f.write(util.processTemplate(os.path.join(
                         self._config.get('PKG_DATA_DIR'),
                         'conf',
                         'settings.properties.in'
-                    ),
-                    dict(
-                        ('@%s@' % k, util.escape(v, ':=\\ ')) for (k, v) in
-                        self._config.values.items()
-                    ),
-                )
-            )
+                    ), {'@%s@' % k: util.escape(v, ':=\\ ') for (k, v) in
+                                self._config.values.items()}))
 
         self._serviceArgs = [
             'ovirt-engine-dwhd',
