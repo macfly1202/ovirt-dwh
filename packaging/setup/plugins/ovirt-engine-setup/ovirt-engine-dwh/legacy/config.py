@@ -94,17 +94,14 @@ class Plugin(plugin.PluginBase):
             not current.get('ENGINE_DB_PASSWORD') and
             legacy.get('ovirtEngineHistoryDbPassword')
         ):
-            fixups = []
-            for old, new in (
+            fixups = ['%s="%s"' % (new, legacy.get(old)) for old, new in (
                 ('runDeleteTime', 'DWH_DELETE_JOB_HOUR'),
                 ('runInterleave', 'DWH_SAMPLING'),
                 ('timeBetweenErrorEvents', 'DWH_ERROR_EVENT_INTERVAL'),
                 ('hoursToKeepSamples', 'DWH_TABLES_KEEP_SAMPLES'),
                 ('hoursToKeepHourly', 'DWH_TABLES_KEEP_HOURLY'),
                 ('hoursToKeepDaily', 'DWH_TABLES_KEEP_DAILY'),
-            ):
-                if legacy.get(old) != current.get(new):
-                    fixups.append('%s="%s"' % (new, legacy.get(old)))
+            ) if legacy.get(old) != current.get(new)]
             if fixups:
                 uninstall_files = []
                 self.environment[
@@ -153,9 +150,9 @@ class Plugin(plugin.PluginBase):
             ] = jdbcurl.group('extra').find('ssl=true') != -1
             self.environment[
                 odwhcons.DBEnv.SECURED_HOST_VALIDATION
-            ] = not jdbcurl.group('extra').find(
+            ] = jdbcurl.group('extra').find(
                 'sslfactory=org.postgresql.ssl.NonValidatingFactory'
-            ) == -1
+            ) != -1
             self.environment[
                 odwhcons.DBEnv.USER
             ] = legacy.get('ovirtEngineHistoryDbUser')

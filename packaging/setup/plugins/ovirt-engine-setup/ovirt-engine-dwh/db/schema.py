@@ -211,22 +211,49 @@ class Plugin(plugin.PluginBase):
         ),
     )
     def _customization(self):
-        if self.environment[odwhcons.DBEnv.PERFORM_BACKUP] is None:
-            perform_backup = dialog.queryBoolean(
+        if self.environment[odwhcons.DBEnv.PERFORM_BACKUP] is not None:
+            return
+
+        perform_backup = dialog.queryBoolean(
+            dialog=self.dialog,
+            name='OVESETUP_DWH_PERFORM_BACKUP',
+            note=_(
+                'The detected DWH database size is {dbsize}.\n'
+                'Setup can backup the existing database. The time and '
+                'space required for the database backup depend on its '
+                'size. This process '
+                'takes time, and in some cases (for instance, when the '
+                'size is few GBs) may take several hours to complete.\n'
+                'If you choose to not back up the database, and Setup '
+                'later fails for some reason, it will not be able to '
+                'restore the database and all DWH data will be lost.\n'
+                'Would you like to backup the existing database before '
+                'upgrading it? '
+                '(@VALUES@) [@DEFAULT@]: '
+            ).format(
+                dbsize=self._HumanReadableSize(self._getDBSize()),
+            ),
+            prompt=True,
+            true=_('Yes'),
+            false=_('No'),
+            default=True,
+        )
+        if not perform_backup:
+            self.logger.warning(
+                _(
+                    'Are you sure you do not want to backup the DWH '
+                    'database?'
+                )
+            )
+            perform_backup = not dialog.queryBoolean(
                 dialog=self.dialog,
-                name='OVESETUP_DWH_PERFORM_BACKUP',
+                name='OVESETUP_DWH_VERIFY_NO_BACKUP',
                 note=_(
-                    'The detected DWH database size is {dbsize}.\n'
-                    'Setup can backup the existing database. The time and '
-                    'space required for the database backup depend on its '
-                    'size. This process '
-                    'takes time, and in some cases (for instance, when the '
-                    'size is few GBs) may take several hours to complete.\n'
-                    'If you choose to not back up the database, and Setup '
-                    'later fails for some reason, it will not be able to '
-                    'restore the database and all DWH data will be lost.\n'
-                    'Would you like to backup the existing database before '
-                    'upgrading it? '
+                    'A positive reply makes sense only if '
+                    'you do not need the data in DWH, or have some other, '
+                    'external means to restore it to a working state.\n'
+                    'Are you sure you do not want to backup the DWH '
+                    'database?'
                     '(@VALUES@) [@DEFAULT@]: '
                 ).format(
                     dbsize=self._HumanReadableSize(self._getDBSize()),
@@ -234,50 +261,25 @@ class Plugin(plugin.PluginBase):
                 prompt=True,
                 true=_('Yes'),
                 false=_('No'),
-                default=True,
+                default=False,
             )
-            if not perform_backup:
-                self.logger.warning(
-                    _(
-                        'Are you sure you do not want to backup the DWH '
-                        'database?'
-                    )
-                )
-                perform_backup = not dialog.queryBoolean(
-                    dialog=self.dialog,
-                    name='OVESETUP_DWH_VERIFY_NO_BACKUP',
-                    note=_(
-                        'A positive reply makes sense only if '
-                        'you do not need the data in DWH, or have some other, '
-                        'external means to restore it to a working state.\n'
-                        'Are you sure you do not want to backup the DWH '
-                        'database?'
-                        '(@VALUES@) [@DEFAULT@]: '
-                    ).format(
-                        dbsize=self._HumanReadableSize(self._getDBSize()),
+            if perform_backup:
+                self.dialog.note(
+                    text=_(
+                        'The DWH Database will be backed up prior '
+                        'to upgrade.'
                     ),
-                    prompt=True,
-                    true=_('Yes'),
-                    false=_('No'),
-                    default=False,
                 )
-                if perform_backup:
-                    self.dialog.note(
-                        text=_(
-                            'The DWH Database will be backed up prior '
-                            'to upgrade.'
-                        ),
-                    )
-            if not perform_backup:
-                self.logger.warning(
-                    _(
-                        'DWH Database will not be backed up. Rollback in case '
-                        'of failure will not be possible.'
-                    )
+        if not perform_backup:
+            self.logger.warning(
+                _(
+                    'DWH Database will not be backed up. Rollback in case '
+                    'of failure will not be possible.'
                 )
-            self.environment[
-                odwhcons.DBEnv.PERFORM_BACKUP
-            ] = perform_backup
+            )
+        self.environment[
+            odwhcons.DBEnv.PERFORM_BACKUP
+        ] = perform_backup
 
     @plugin.event(
         stage=plugin.Stages.STAGE_VALIDATION,
